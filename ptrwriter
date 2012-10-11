@@ -1,0 +1,54 @@
+#!/usr/bin/env python
+import re
+import sys
+import os
+
+testres = len(sys.argv)
+if testres < 3:
+ sys.exit('Usage: ' + sys.argv[0] + ' <dns record> <suffix for in-addr file: re outer, inner>')
+else:
+ dnsrecord = sys.argv[1]
+ suffix = sys.argv[2]
+
+if os.path.exists(dnsrecord):
+	f = open(dnsrecord)
+	data = f.read()
+	f.close()
+else:
+	sys.exit(dnsrecord + 'does not exist!')
+
+prevhost = ''
+for i in data.split('$ORIGIN'):
+	d = i.split('\n')
+	#origin = d[0].strip()[:-1]
+	origin = d[0].strip()
+	#print "origin: %s" % (origin)
+	for y in range(1,len(d)):
+		r = re.search('\tA\t', d[y])
+		#if not r:
+		#	print '*** skipping: %s' % (d[y])
+		if r:
+			l = d[y].split()
+			if len(l) > 3:
+				print "****** WARNING: pattern doesn't match: %s" % (r)
+			if len(l) == 2:
+				oip = l[1]
+				l[0] = prevhost
+				l[1] = 'A'
+				l.append(oip)
+			ip = l[2].split('.')
+			#if ip[0] == '172':
+			#	record = '%s.%s.%s.in-addr.arpa' % (ip[2],ip[1],ip[0])
+			#else:
+			#	record = '%s.%s.in-addr.arpa' % (ip[1],ip[0])
+			record = '%s.%s.%s.in-addr.arpa.%s' % (ip[2],ip[1],ip[0],suffix)
+			inaddr = '%s.%s.%s.%s.in-addr.arpa' % (ip[3],ip[2],ip[1],ip[0])
+			if l[0]:
+				hostname = l[0]
+			else:
+				hostname = prevhost
+			ipstr = '%s\tPTR\t%s.%s' % (inaddr,hostname,origin)
+			f = open(record,'a')
+			f.write(ipstr + '\n')
+			f.close()
+			prevhost = hostname
